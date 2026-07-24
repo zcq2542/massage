@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+venv/
+.venv/
+env/
+
+# Secrets / PII — config.yaml contains real names, phones, webhook keys.
+# Commit config.example.yaml instead.
+config.yaml
+config.local.yaml
+.env
+.env.*
+
+# Calibration captures & logs
+docs/calibration-*.md
+*.log
+logs/
+/var/log/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
