@@ -25,6 +25,10 @@ docs/calibration-*.md
 logs/
 /var/log/
 
+# Runtime state (rotation pointer, weekly usage counts)
+state.json
+*.state.json
+
 # OS / editor
 .DS_Store
 Thumbs.db

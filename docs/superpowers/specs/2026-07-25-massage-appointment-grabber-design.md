@@ -118,17 +118,22 @@ timing:
   poll_concurrency: 8
   fire_concurrency: 3
   total_timeout_s: 30
+rotation:
+  enabled: true
+  weekly_quota: 1          # 每员工每周最多预约次数（站点业务规则，可配）；用满即跳过该 profile
+  state_file: state.json   # 持久化轮换指针 + 本周已用次数（已 gitignore）
 safety:
   dedup: true
   auto_cancel_extras: true
-  max_records_per_day: 1
 profiles:
   - name: 张三
+    openid: "1"            # 不同 profile 必须配不同 openid，否则可能共用站点每周额度
     phone: "13800138000"
-    count: 1
+    count: 1               # record_number：单次预约人数（站点字段）
     doc_id: "22"
     slot_priorities: ["20:30", "21:00", "21:30"]
   - name: 李四
+    openid: "2"
     phone: "13900139000"
     count: 1
     doc_id: "22"
@@ -165,7 +170,14 @@ profiles:
 一次性只读标定工具（见第 6 节）。
 
 ### 4.9 `main.py`
-入口：解析 `--target`/`--dry-run`/`--calibrate` → 加载配置 → 校时 → 精确等到放号前 → 逐 profile（或并发）跑 grabber → safety 兜底 → notify → 退出码反映结果。
+入口：解析 `--target`/`--dry-run`/`--calibrate` → 加载配置 → 校时 → 精确等到放号前 → `rotation.pick_profile()` 选本周还有额度的 profile（`--target` 指定时跳过轮换）→ 跑 grabber → 成功则 `rotation.mark_booked()` → safety 兜底 → notify → 退出码反映结果。
+
+### 4.10 `rotation.py`
+profile 轮换与每周额度状态。
+- 状态文件 `state.json`（gitignored）：`{week: "2026-W30", rotation_index: N, used: {<profile_id>: <次数>}}`。
+- `pick_profile(config, state) -> Profile | None`：从 `rotation_index` 起找第一个 `used[id] < weekly_quota` 的 profile；跨周（ISO week 变化）自动清空 `used`。`--target` 模式下绕过此函数。
+- `mark_booked(state, profile_id)`：成功后 `used[id]+=1`、推进 `rotation_index`、落盘。
+- 返回 `None` 表示本周所有 profile 额度已用完 → main 通知并跳过本次。
 
 ## 5. 数据流
 
@@ -173,15 +185,17 @@ profiles:
 cron(周一/三 19:59) → main.py
   → clocksync.calibrate()              # 对齐服务器时钟
   → sleep_until(T - pre_poll_seconds)  # 精确等到 19:59:59
-  → for profile in targets:
-       grabber.run(profile)
-         ├─ asyncio.gather(*[poll_get_schedule()])   # 8 路并发轮询
-         ├─ on first slots → slots.rank_by_priority
-         ├─ pipeline fire SaveRecord (fired-set, won-flag)
-         │     └─ on code -2 → next priority slot
-         └─ won or timeout
-       safety.reconcile(profile, count)              # 撤多余
-       notify(result)
+  → profile = rotation.pick_profile()  # 选本周还有额度的下一个 profile（--target 时跳过）
+  → if profile is None: notify("本周所有 profile 额度已用完"); exit
+  → grabber.run(profile)
+       ├─ asyncio.gather(*[poll_get_schedule()])   # 8 路并发轮询
+       ├─ on first slots → slots.rank_by_priority
+       ├─ pipeline fire SaveRecord (fired-set, won-flag)
+       │     └─ on code -2 → next priority slot
+       └─ won or timeout
+  → on success: rotation.mark_booked(profile)
+  → safety.reconcile(profile, count)              # 撤多余
+  → notify(result)
 ```
 
 ## 6. 标定步骤（calibrate.py，上线前必跑一次）
@@ -211,9 +225,11 @@ cron(周一/三 19:59) → main.py
 - **网络异常 / 超时**：单请求 2-3s 超时；轮询窗口内重试；窗口结束仍无果则通知。
 - **`-2`**：回退下一优先时段。
 - **`-3`**：配置错误 → 通知并中止该 profile（不中止其他 profile）。
-- **`-1`**：多半今日已约 → 通知提示。
+- **`-1`**：预约间隔不足（多半今日已约）→ 通知提示。
+- **`-4`**：本周额度已满 → 通知；`rotation` 把该 profile 标记为本周用完，后续不再选它。
 - **未知码**：记录完整响应体 → 通知 → 按失败处理。
 - **超时无时段**：通知"未放号/放号时间判断有误"，提示人工检查。
+- **本周所有 profile 额度已用完**：`pick_profile` 返回 None → 通知并跳过本次抢号。
 - **时钟漂移**：每次运行重新校时；不缓存偏移。
 
 ## 9. 测试策略
@@ -242,4 +258,4 @@ cron(周一/三 19:59) → main.py
 - [ ] 时段 JSON 是否含"余位数字"字段（JS 未读取此类字段，可能没有；标定确认）
 - [ ] `sch_id` 跨周是否稳定（决定盲打开关）
 - [ ] 20:00 前对目标日 `GetSchedule` 是否返回空（验证放号边界）
-- [ ] **关键**：每周次数上限（`-4`）与预约记录按什么身份计数——手机号还是 `openid`？若按 `openid` 且多个 profile 都用默认 `"1"`，会共用一个员工额度、互相挤占并触发 `-4`。标定时用不同手机号/openid 组合探测，确定每个真实员工需配哪个 `openid`
+- [ ] **关键**：每周次数上限（`-4`）与预约记录按什么身份计数——手机号还是 `openid`？已按"每个 profile 配独立 `openid`"设计（见 4.1），标定时确认 `openid` 是否真的影响额度，以决定能否回退为统一值
