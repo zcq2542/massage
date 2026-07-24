@@ -94,9 +94,19 @@ sch_id        # 选中的时段 ID（来自 GetSchedule 返回）
 
 ```yaml
 base_url: http://www.jingxin-jk.com:825
-webhook:
-  type: bark            # bark | serverchan | dingtalk | wecom
-  url: https://api.day.app/XXXX
+# 通知渠道：列表，可配 0~N 个；notify 会向所有配置的渠道都推送。
+# bark / dingtalk / serverchan 三种适配器全部实现，按需在列表里列你想要的；
+# 想只用一种就只列一个，想多端同时收到就列多个。
+webhooks:
+  - type: bark              # Bark（iOS 推送）
+    url: https://api.day.app/XXXXXXXX    # 完整 url，含设备 token
+    # 可选：group / icon / sound / level
+  - type: dingtalk          # 钉钉群机器人
+    webhook: https://oapi.dingtalk.com/robot/send?access_token=XXXXXXXX
+    secret: SECXXXXXXXX      # 可选；启用加签时填，与 access_token 配套
+  - type: serverchan        # Server酱（微信推送）
+    sendkey: SCTXXXXXXXX
+    # 可选：uid（Turbo 多通道时区分）
 timing:
   start_lead_seconds: 60      # cron 提前量；脚本内再精确等到 T-1s
   pre_poll_seconds: 1         # T-1s 开始轮询
@@ -136,7 +146,13 @@ profiles:
 抢号引擎。`async run(profile) -> GrabResult`：编排 4.1–4.4，实现策略 C（并发轮询 + 流水线发射 + dedup + won + -2 回退）。返回 `{success, slot, code, attempts, duration_ms}`。
 
 ### 4.6 `notify.py`
-可插拔 webhook：Bark / Server酱 / 钉钉机器人 / 企业微信机器人。`notify(title, body, level)`，失败重试 2 次。
+通知层。三种适配器全部实现，按注册表（registry）模式组织，配置里列哪种就推哪种。
+
+- `notify(title, body, level)`：遍历 `config.webhooks`，向每个渠道并发推送；单渠道失败重试 2 次、不影响其他渠道。
+- **Bark 适配器**：POST `{url}` JSON `{title, body, group, level}`（level 由结果映射，如成功→active、失败→timeSensitive）。
+- **DingTalk 适配器**：POST `{webhook}` JSON `{msgtype:"text", text:{content: title+"\n"+body}}`；若配了 `secret`，按钉钉规则计算加签（`timestamp = 毫秒时间戳`，`sign = base64(HMAC-SHA256(secret, timestamp+"\n"+secret))`，URL 编码后追加 `&timestamp=&sign=`）。
+- **ServerChan 适配器**：POST `https://sctapi.ftqq.com/{sendkey}.send`，body `title` / `desp`（支持 Markdown）。
+- 统一抽象：`Webhook` 基类 + `send(title, body, level)` 方法，新增渠道（如企业微信）只需加一个子类注册。
 
 ### 4.7 `safety.py`
 `reconcile(profile, expected_count)`：查 `gethistory`，若今日预约数超预期，对多余的调 `cancelRecord`（保留最早）。返回操作记录供通知。
