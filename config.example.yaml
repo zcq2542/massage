@@ -1,0 +1,39 @@
+base_url: http://www.jingxin-jk.com:825
+# 通知渠道：列表，可配 0~N 个，notify 向全部推送。
+webhooks:
+  - type: bark
+    url: https://api.day.app/XXXXXXXX
+  - type: dingtalk
+    webhook: https://oapi.dingtalk.com/robot/send?access_token=XXXXXXXX
+    secret: SECXXXXXXXX
+  - type: serverchan
+    sendkey: SCTXXXXXXXX
+timing:
+  start_lead_seconds: 60
+  pre_poll_seconds: 1.0
+  poll_interval_ms: 50
+  poll_concurrency: 8
+  fire_concurrency: 3
+  total_timeout_s: 30.0
+rotation:
+  enabled: true
+  weekly_quota: 1
+  state_file: state.json
+safety:
+  dedup: true
+  auto_cancel_extras: true
+profiles:
+  - name: 张三
+    openid: "1"
+    phone: "13800138000"
+    count: 1
+    doc_id: "22"
+    slot_priorities: ["20:30", "21:00", "21:30"]
+    book_date: tomorrow        # today | tomorrow | YYYY-MM-DD
+  - name: 李四
+    openid: "2"
+    phone: "13900139000"
+    count: 1
+    doc_id: "22"
+    slot_priorities: ["20:30"]
+    book_date: tomorrow
