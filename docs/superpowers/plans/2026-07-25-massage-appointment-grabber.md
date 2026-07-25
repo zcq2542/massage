@@ -6,11 +6,11 @@
 
 **Architecture:** 直接调用站点后端 API（同源 `http://www.jingxin-jk.com:825`），不驱动浏览器。核心是"并发轮询 GetSchedule → 按优先级顺序 SaveRecord → -2 回退"的抢号引擎，配合服务器对时、profile 轮换、防重复预约、webhook 通知。模块化，每个文件单一职责，可独立测试。
 
-**Tech Stack:** Python 3.11+、httpx（异步 HTTP）、PyYAML（配置）、pytest + pytest-asyncio + respx（测试）。
+**Tech Stack:** Python 3.10+、httpx（异步 HTTP）、PyYAML（配置）、pytest + pytest-asyncio + respx（测试）。
 
 ## Global Constraints
 
-- **Python ≥ 3.11**（用 `datetime.fromisoformat`、新 typing 语法）。
+- **Python ≥ 3.10**（用 `from __future__ import annotations` 支持新 typing 语法；代码未用任何 3.11+ 独有特性）。
 - **目标站点**：`http://www.jingxin-jk.com:825`，API 同源。
 - **接口契约**（从站点 JS 逆向确认，写代码必须照此）：
   - `POST /InSurHome/GetServerTime`，body=JSON(orderListQuery)，返回 Date 可解析的服务器时间。
@@ -72,7 +72,7 @@ README.md          # 部署说明（cron、config）
 [project]
 name = "jxgrab"
 version = "0.1.0"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = ["httpx>=0.27", "PyYAML>=6.0"]
 
 [project.optional-dependencies]
@@ -1652,7 +1652,7 @@ git commit -m "feat: main entrypoint wiring clocksync+rotation+grab+safety+notif
 ## 安装
 ```bash
 git clone <repo> /opt/jxgrab && cd /opt/jxgrab
-python3.11 -m venv venv && . venv/bin/activate
+python3 -m venv venv && . venv/bin/activate
 pip install -e ".[dev]"
 cp config.example.yaml config.yaml   # 填真实信息（gitignore，不入库）
 ```
