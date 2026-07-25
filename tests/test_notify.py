@@ -31,6 +31,11 @@ async def test_dingtalk_appends_sign_when_secret():
         await ch.send("t", "b", "warning")
     url = str(respx.calls[0].request.url)
     assert "timestamp=" in url and "sign=" in url
+    from urllib.parse import parse_qs, unquote_plus
+    q = parse_qs(respx.calls[0].request.url.query.decode())
+    ts = int(q["timestamp"][0])
+    # parse_qs URL-decodes query values; unquote the recomputed sign to match
+    assert q["sign"][0] == unquote_plus(dingtalk_sign("SECS", ts))
 
 @respx.mock
 async def test_serverchan_posts_sendkey():
@@ -55,3 +60,18 @@ async def test_notify_all_fans_out_and_isolates_failures():
     # one failed, one ok; neither raised
     assert len(results) == 2
     assert any(r.exception for r in results) and any(not r.exception for r in results)
+
+
+@respx.mock
+async def test_send_with_retry_retries_then_succeeds():
+    route = respx.post("https://api.day.app/K").mock(side_effect=[
+        httpx.Response(500),
+        httpx.Response(500),
+        httpx.Response(200, json={"code": 200}),
+    ])
+    from jxgrab.config import Webhook
+    async with httpx.AsyncClient() as hc:
+        channels = build([Webhook("bark", {"url": "https://api.day.app/K"})], hc)
+        results = await notify_all(channels, "t", "b", "active")
+    assert route.call_count == 3                 # 1 initial + 2 retries
+    assert results[0].exception is None          # 3rd attempt succeeded

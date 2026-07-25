@@ -6,7 +6,8 @@ import httpx
 
 
 @dataclass
-class _Result:
+class NotifyResult:
+    """Per-channel outcome of ``notify_all``; ``exception`` is None on success or the caught exception on failure."""
     exception: Optional[BaseException] = None
 
 
@@ -71,11 +72,16 @@ async def _send_with_retry(ch: Webhook, title, body, level, retries=2):
     for _ in range(retries + 1):
         try:
             await ch.send(title, body, level)
-            return _Result(exception=None)
+            return NotifyResult(exception=None)
         except Exception as e:  # noqa: BLE001
             last = e
-    return _Result(exception=last)
+    return NotifyResult(exception=last)
 
 
-async def notify_all(channels: list, title: str, body: str, level: str = "active") -> list:
+async def notify_all(channels: list, title: str, body: str, level: str = "active") -> list[NotifyResult]:
+    """Send a notification to every channel in parallel.
+
+    Returns ``list[NotifyResult]`` (one per channel, in order). Callers detect
+    failures with ``result.exception is not None``.
+    """
     return await asyncio.gather(*[_send_with_retry(c, title, body, level) for c in channels])
