@@ -45,10 +45,12 @@ def test_new_week_resets_usage(tmp_path):
     cfg = _cfg_with_state(tmp_path, "s.json")
     r = Rotation(cfg)
     ps = _profiles()
-    r.mark_booked(ps, ps[0])
-    # simulate state from last week
-    r.state["week"] = "1999-W01"
-    assert r.pick_profile(ps).name == "A"  # reset → A eligible again
+    r.mark_booked(ps, ps[0])               # A booked; rotation_index → 1
+    r.state["week"] = "1999-W01"           # simulate last week
+    r.pick_profile(ps)                     # triggers week rollover
+    assert r.state["used"] == {}                            # usage cleared
+    assert r.state["rotation_index"] == 1                  # pointer carries forward (spec §4.10)
+    assert r.state["week"] == iso_week(date.today())       # week updated
 
 def test_disabled_returns_first(tmp_path):
     class R:

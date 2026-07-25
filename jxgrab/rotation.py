@@ -28,7 +28,6 @@ class Rotation:
         if self.state.get("week") != w:
             self.state["week"] = w
             self.state["used"] = {}
-            self.state["rotation_index"] = 0
 
     def pick_profile(self, profiles: list):
         if not profiles:
