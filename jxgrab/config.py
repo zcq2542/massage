@@ -28,9 +28,10 @@ class Profile:
 @dataclass
 class Timing:
     start_lead_seconds: int = 60
+    release_time: str = "20:00"
     pre_poll_seconds: float = 1.0
     poll_interval_ms: int = 50
-    poll_concurrency: int = 8
+    poll_concurrency: int = 2
     fire_concurrency: int = 3
     total_timeout_s: float = 30.0
 

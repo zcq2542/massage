@@ -10,8 +10,14 @@ def _record_id(rec) -> str:
 
 
 async def reconcile(client, profile, expected_count: int, day: str,
+                    keep_sch_id: str | None = None,
                     safety: Safety | None = None) -> list[str]:
-    """If today's bookings exceed expected_count, cancel the extras (keep earliest)."""
+    """If today's bookings exceed expected_count, cancel the extras (keep earliest).
+
+    Keeps by IDENTITY (history ordering is unverified — spec §11): never cancels
+    the slot we just booked (``keep_sch_id``). Fills up to ``expected_count``
+    from the rest, cancels the remainder.
+    """
     safety = safety or Safety()
     if not safety.auto_cancel_extras:
         return []
@@ -25,8 +31,17 @@ async def reconcile(client, profile, expected_count: int, day: str,
     if len(history) <= expected_count:
         return []
     log: list[str] = []
-    extras = history[expected_count:]  # keep first `expected_count`, cancel rest
-    for rec in extras:
+
+    # Keep by IDENTITY (history ordering is unverified — spec §11): never cancel
+    # the slot we just booked. Protect keep_sch_id, fill up to expected_count
+    # from the rest, cancel the remainder.
+    protected = [r for r in history
+                 if keep_sch_id is not None and isinstance(r, dict)
+                 and str(r.get("sch_id", "")) == keep_sch_id]
+    others = [r for r in history if r not in protected]
+    slots_needed = max(0, expected_count - len(protected))
+    cancel = others[slots_needed:]          # keep others[:slots_needed], cancel rest
+    for rec in cancel:
         rid = _record_id(rec)
         if not rid:
             continue

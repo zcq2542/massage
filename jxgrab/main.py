@@ -26,6 +26,11 @@ def resolve_book_date(spec: str, today: datetime) -> tuple[str, str]:
     return s, s
 
 
+def _today_at(server_now: datetime, hhmm: str) -> datetime:
+    h, m = hhmm.split(":")
+    return server_now.replace(hour=int(h), minute=int(m), second=0, microsecond=0)
+
+
 async def run_grab(config_path: str, target: str | None) -> dict:
     cfg = load_config(config_path)
     rotation = Rotation(cfg)
@@ -49,16 +54,20 @@ async def run_grab(config_path: str, target: str | None) -> dict:
         cs = ClockSync(client)
         await cs.calibrate({"doc_id": chosen.doc_id, "openid": chosen.openid})
 
-        fire_at = cs.server_now().replace(second=0, microsecond=0) + timedelta(minutes=1)
-        # When triggered at 19:59 by cron, fire_at ≈ 20:00:00 server time.
-        await cs.sleep_until(fire_at - timedelta(seconds=cfg.timing.pre_poll_seconds))
+        fire_at = _today_at(cs.server_now(), cfg.timing.release_time)
+        if cs.server_now() >= fire_at + timedelta(seconds=1):
+            log.error("started after release time %s (server now %s); firing immediately",
+                      cfg.timing.release_time, cs.server_now().isoformat())
+        else:
+            await cs.sleep_until(fire_at - timedelta(seconds=cfg.timing.pre_poll_seconds))
 
         result = await grab_run(client, chosen, day, daytime, cfg.timing)
 
         safety_log: list[str] = []
         if result.success:
             rotation.mark_booked(cfg.profiles, chosen)
-            safety_log = await reconcile(client, chosen, chosen.count, day)
+            safety_log = await reconcile(client, chosen, chosen.count, day,
+                                         keep_sch_id=str(result.slot.sch_id) if result.slot else None)
 
     title = "抢号成功" if result.success else "抢号失败"
     body = (f"{chosen.name} | {result.slot.work_begin if result.slot else '-'}\n"

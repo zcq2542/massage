@@ -23,24 +23,28 @@ class GrabResult:
     message: str = ""
 
 
-async def _poll_once(client, q: dict) -> list:
+async def _poll_once(client, q: dict):
     try:
         return await client.get_schedule(q)
     except Exception:
-        return []
+        return None
 
 
-async def _first_nonempty_schedule(client, q: dict, timing) -> list:
+async def _first_nonempty_schedule(client, q: dict, timing):
     deadline = time.monotonic() + timing.total_timeout_s
     interval = timing.poll_interval_ms / 1000
+    saw_ok = False
     while time.monotonic() < deadline:
-        tasks = [asyncio.create_task(_poll_once(client, q)) for _ in range(timing.poll_concurrency)]
-        results = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*[asyncio.create_task(_poll_once(client, q))
+                                        for _ in range(timing.poll_concurrency)])
         for r in results:
+            if r is None:
+                continue
+            saw_ok = True
             if r:
                 return r
         await asyncio.sleep(interval)
-    return []
+    return "transport_error" if not saw_ok else "no_slots"
 
 
 async def run(client, profile, day: str, daytime: str, timing) -> GrabResult:
@@ -49,7 +53,10 @@ async def run(client, profile, day: str, daytime: str, timing) -> GrabResult:
 
     raw = await _first_nonempty_schedule(client, base_q, timing)
     duration = int((time.monotonic() - start) * 1000)
-    if not raw:
+    if raw == "transport_error":
+        return GrabResult(False, duration_ms=duration,
+                          message="timeout: site unreachable (all polls errored)")
+    if not isinstance(raw, list) or not raw:
         return GrabResult(False, duration_ms=duration, message="timeout: no slots released")
 
     ranked = rank_by_priority(parse(raw), profile.slot_priorities)

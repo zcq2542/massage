@@ -61,3 +61,13 @@ async def test_timeout_when_no_slots():
         r = await run(c, _profile(), "2026-07-27", "2026-07-27", Timing(total_timeout_s=1, poll_interval_ms=200))
     assert r.success is False
     assert "no slots" in r.message
+
+@respx.mock
+async def test_transport_errors_reported_distinctly():
+    respx.get(f"{BASE}/InSurHome/GetSchedule").mock(side_effect=httpx.ConnectError("dns"))
+    from jxgrab.client import SiteClient
+    async with SiteClient(BASE) as c:
+        r = await run(c, _profile(), "2026-07-27", "2026-07-27",
+                      Timing(total_timeout_s=1, poll_interval_ms=200))
+    assert r.success is False
+    assert "unreachable" in r.message

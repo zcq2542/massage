@@ -28,6 +28,20 @@ async def test_cancels_extras_keeping_earliest():
     assert cancel.call_count == 1
 
 @respx.mock
+async def test_reconcile_keeps_just_booked_by_identity():
+    # history newest-first; the just-booked slot is sch_id="2" (second in list)
+    history = [{"record_id": "r1", "sch_id": "1"}, {"record_id": "r2", "sch_id": "2"}]
+    respx.get(f"{BASE}/InSurHome/gethistory").mock(return_value=httpx.Response(200, json=history))
+    cancel = respx.post(f"{BASE}/InSurHome/cancelRecord").mock(return_value=httpx.Response(200, json={"code": "1"}))
+    from jxgrab.client import SiteClient
+    async with SiteClient(BASE) as c:
+        log = await reconcile(c, _profile(), expected_count=1, day="2026-07-27", keep_sch_id="2")
+    # the just-booked (sch_id=2 / r2) is KEPT; the other (r1) is cancelled
+    assert "r1" in "".join(log)
+    assert "r2" not in "".join(log)
+    assert cancel.call_count == 1
+
+@respx.mock
 async def test_disabled_does_nothing():
     respx.get(f"{BASE}/InSurHome/gethistory").mock(return_value=httpx.Response(200, json=[
         {"record_id": "r1"}, {"record_id": "r2"}]))

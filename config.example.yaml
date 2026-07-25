@@ -10,9 +10,10 @@ webhooks:
     sendkey: SCTXXXXXXXX
 timing:
   start_lead_seconds: 60
+  release_time: "20:00"
   pre_poll_seconds: 1.0
   poll_interval_ms: 50
-  poll_concurrency: 8
+  poll_concurrency: 2  # concurrent GetSchedule polls per round (tail-latency vs server load tradeoff)
   fire_concurrency: 3
   total_timeout_s: 30.0
 rotation:
