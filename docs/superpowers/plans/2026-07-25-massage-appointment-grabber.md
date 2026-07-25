@@ -490,7 +490,7 @@ git commit -m "feat: site HTTP client (7 endpoints, browser headers)"
 
 ```python
 import time as _time
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock
 from jxgrab.clocksync import ClockSync
 
@@ -523,7 +523,9 @@ async def test_sleep_until_returns_immediately_if_past():
     client = AsyncMock()
     cs = ClockSync(client)
     cs.offset = 0.0
-    past = datetime(2000, 1, 1)
+    # derive "past" from server_now() so it's genuinely past regardless of
+    # the offset/epoch (offset=0 → monotonic epoch ~1970, not wall clock)
+    past = cs.server_now() - timedelta(seconds=10)
     await cs.sleep_until(past)  # should not block
 ```
 
