@@ -11,6 +11,9 @@ dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "respx>=0.21"]
 jxgrab = "jxgrab.main:main"
 jxgrab-calibrate = "jxgrab.calibrate:main"
 
+[tool.setuptools.packages.find]
+include = ["jxgrab*"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
