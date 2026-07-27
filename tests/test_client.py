@@ -52,6 +52,15 @@ async def test_get_schedule_empty_when_not_list():
         assert await c.get_schedule({}) == []
 
 @respx.mock
+async def test_get_schedule_decodes_string_body():
+    # live site returns the slot array as a JSON-encoded string ("[{...}]")
+    body = '[{"sch_id": 5, "work_begin": "11:00:00"}]'
+    respx.get(f"{BASE}/InSurHome/GetSchedule").mock(return_value=httpx.Response(200, json=body))
+    async with SiteClient(BASE) as c:
+        out = await c.get_schedule({"doc_id": "22"})
+    assert out == [{"sch_id": 5, "work_begin": "11:00:00"}]
+
+@respx.mock
 async def test_save_record_uses_query_not_body():
     route = respx.post(f"{BASE}/InSurHome/SaveRecord").mock(
         return_value=httpx.Response(200, json={"code": "1"}))

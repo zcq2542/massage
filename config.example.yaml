@@ -29,12 +29,15 @@ profiles:
     phone: "13800138000"
     count: 1
     doc_id: "22"
-    slot_priorities: ["20:30", "21:00", "21:30"]
+    # 想要的时段，按优先级；写 "HH:MM" 即可（站点返回带秒也能匹配）。
+    # 该理疗时段窗：11:00-14:15、16:45-21:00，半小时一格。
+    # 周二/四的号在前一晚 20:00 放出（故 cron 周一/三 19:59 触发）。
+    slot_priorities: ["18:30", "19:00", "17:45", "20:00"]
     book_date: tomorrow        # today | tomorrow | YYYY-MM-DD
   - name: 李四
     openid: "2"
     phone: "13900139000"
     count: 1
     doc_id: "22"
-    slot_priorities: ["20:30"]
+    slot_priorities: ["18:30", "19:00"]
     book_date: tomorrow

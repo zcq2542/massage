@@ -35,3 +35,13 @@ def test_rank_no_priorities_keeps_time_order():
     slots = parse(RAW)
     ranked = rank_by_priority(slots, [])
     assert [s.work_begin for s in ranked] == ["20:30", "21:00", "22:00"]
+
+def test_rank_matches_hhmm_priority_against_hhmmss_slots():
+    # site returns work_begin as "HH:MM:SS"; priorities written as "HH:MM"
+    slots = parse([
+        {"sch_id": 1, "work_begin": "11:00:00"},
+        {"sch_id": 2, "work_begin": "11:30:00"},
+    ])
+    ranked = rank_by_priority(slots, ["11:30", "11:00"])
+    assert ranked[0].sch_id == "2"
+    assert ranked[1].sch_id == "1"

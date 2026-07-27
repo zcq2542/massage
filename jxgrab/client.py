@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
-from json import dumps
+from json import dumps, loads
 import httpx
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -74,7 +74,16 @@ class SiteClient:
     async def get_schedule_raw(self, q: dict):
         r = await self._c.get("/InSurHome/GetSchedule", params=q)
         r.raise_for_status()
-        return r.json()
+        data = r.json()
+        # Site returns the slot array as a JSON-encoded string ("[{...}]");
+        # decode once more so callers get the list. Guard so plain strings /
+        # empty bodies don't crash (get_schedule coerces non-lists to []).
+        if isinstance(data, str) and data.strip().startswith(("[", "{")):
+            try:
+                data = loads(data)
+            except ValueError:
+                pass
+        return data
 
     async def get_schedule(self, q: dict) -> list:
         data = await self.get_schedule_raw(q)
