@@ -1,6 +1,6 @@
 # jxgrab — 按摩预约抢号
 
-每周一、三、五是理疗服务日；预约在「前一天晚上 20:00」开放，所以程序在周日/二/四 20:00 自动抢（抢的是次日周一/三/五的号）。
+每周一、三晚上 20:00 自动抢 jingxin 预约（抢的是次日周二、周四的号）。
 
 ## 安装
 ```bash
@@ -11,7 +11,7 @@ cp config.example.yaml config.yaml   # 填真实信息（gitignore，不入库�
 ```
 
 ## 标定（上线前必跑一次）
-在真实的周日/二/四 19:55–20:05（放号前晚）运行，**只读，不会预约**：
+在真实的周一/三 19:55–20:05（放号前晚）运行，**只读，不会预约**：
 ```bash
 python -m jxgrab.calibrate --config config.yaml
 ```
@@ -31,7 +31,7 @@ python -m jxgrab --config config.yaml --target 张三
 ```bash
 crontab deploy/jxgrab.cron
 ```
-确保服务器时区正确（`timedatectl`）。每周日/二/四 20:00 自动抢（次日周一/三/五的号）。
+确保服务器时区正确（`timedatectl`）。每周一、三 20:00 自动抢（次日周二、周四的号）。
 
 ## 测试
 ```bash
