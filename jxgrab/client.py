@@ -71,10 +71,13 @@ class SiteClient:
         r.raise_for_status()
         return r.json()
 
-    async def get_schedule(self, q: dict) -> list:
+    async def get_schedule_raw(self, q: dict):
         r = await self._c.get("/InSurHome/GetSchedule", params=q)
         r.raise_for_status()
-        data = r.json()
+        return r.json()
+
+    async def get_schedule(self, q: dict) -> list:
+        data = await self.get_schedule_raw(q)
         return data if isinstance(data, list) else []
 
     async def save_record(self, q: dict) -> dict:

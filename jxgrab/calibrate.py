@@ -20,7 +20,10 @@ async def probe(client: SiteClient, profile, day: str, daytime: str) -> dict:
     except Exception as e:  # noqa: BLE001
         report["time_config_error"] = repr(e)
     try:
-        sched = await client.get_schedule(q)
+        raw = await client.get_schedule_raw(q)
+        report["schedule_query"] = q
+        report["schedule_raw"] = json.dumps(raw, ensure_ascii=False)[:1000]
+        sched = raw if isinstance(raw, list) else []
         report["schedule_count"] = len(sched)
         report["first_slot"] = sched[0] if sched else None
         report["slot_fields"] = list(sched[0].keys()) if sched else []
