@@ -12,7 +12,7 @@ def test_load_example_config():
     assert p.openid == "1"
     assert p.phone == "13800138000"
     assert p.doc_id == "22"
-    assert p.slot_priorities == ["20:30", "21:00", "21:30"]
+    assert p.slot_priorities == ["18:30", "19:00", "17:45", "20:00"]
     assert p.book_date == "tomorrow"
 
 def test_profile_id_is_stable_key():
