@@ -9,6 +9,10 @@ BASE = "http://www.jingxin-jk.com:825"
 def test_parse_server_time_string():
     assert parse_server_time("2026-07-27 20:00:00") == datetime(2026, 7, 27, 20, 0, 0)
 
+def test_parse_server_time_quoted_string():
+    # live site returns the value double-quoted
+    assert parse_server_time('"2026-07-27 19:43:40"') == datetime(2026, 7, 27, 19, 43, 40)
+
 def test_parse_server_time_epoch_ms():
     from datetime import datetime
     # epoch ms → naive local datetime (mirrors datetime.fromtimestamp)

@@ -16,7 +16,9 @@ def parse_server_time(v) -> datetime:
         secs = v / 1000 if abs(v) > 1e12 else v
         return datetime.fromtimestamp(secs)
     if isinstance(v, str):
-        s = v.strip()
+        # Site returns the timestamp double-quoted (e.g. '"2026-07-27 19:43:40"');
+        # strip whitespace and any surrounding quotes before parsing.
+        s = v.strip().strip('"').strip("'").strip()
         if s.isdigit():
             return parse_server_time(int(s))
         for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S"):
