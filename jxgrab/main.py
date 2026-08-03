@@ -34,6 +34,11 @@ def _today_at(server_now: datetime, hhmm: str) -> datetime:
 async def run_grab(config_path: str, target: str | None) -> dict:
     cfg = load_config(config_path)
     rotation = Rotation(cfg)
+    log.info("config: profiles=%s book_dates=%s release_time=%s quota=%d webhooks=%d auto_cancel_extras=%s",
+             [p.name for p in cfg.profiles], [p.book_date for p in cfg.profiles],
+             cfg.timing.release_time, cfg.rotation.weekly_quota,
+             len(cfg.webhooks), cfg.safety.auto_cancel_extras)
+    log.info("rotation state: %s", rotation.state)
     profiles = cfg.profiles
 
     if target:

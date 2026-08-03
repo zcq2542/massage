@@ -24,7 +24,7 @@ def test_defaults_applied():
     cfg = load_config(EXAMPLE)
     assert cfg.timing.poll_concurrency == 2
     assert cfg.rotation.weekly_quota == 1
-    assert cfg.safety.auto_cancel_extras is True
+    assert cfg.safety.auto_cancel_extras is False
 
 def test_webhooks_parsed():
     cfg = load_config(EXAMPLE)

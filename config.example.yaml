@@ -22,7 +22,9 @@ rotation:
   state_file: state.json
 safety:
   dedup: true
-  auto_cancel_extras: true
+  # 自动取消多余预约。依赖 gethistory 的返回里有 sch_id 字段（用于按身份保住刚抢的号）。
+  # 该结构需先标定确认；确认前保持 false，以免误删。确认后再设 true。
+  auto_cancel_extras: false
 profiles:
   - name: 张三
     openid: "1"
