@@ -61,6 +61,8 @@ async def run_grab(config_path: str, target: str | None) -> dict:
         else:
             await cs.sleep_until(fire_at - timedelta(seconds=cfg.timing.pre_poll_seconds))
 
+        log.info("firing grab: profile=%s daytime=%s server_now=%s",
+                 chosen.name, daytime, cs.server_now().isoformat())
         result = await grab_run(client, chosen, day, daytime, cfg.timing)
 
         safety_log: list[str] = []
@@ -69,6 +71,10 @@ async def run_grab(config_path: str, target: str | None) -> dict:
             safety_log = await reconcile(client, chosen, chosen.count, day,
                                          keep_sch_id=str(result.slot.sch_id) if result.slot else None)
 
+    log.info("RESULT success=%s profile=%s code=%s slot=%s attempts=%s dur=%sms msg=%r safety=%s",
+             result.success, chosen.name, result.code,
+             result.slot.work_begin if result.slot else None,
+             result.attempts, result.duration_ms, result.message, safety_log)
     title = "抢号成功" if result.success else "抢号失败"
     body = (f"{chosen.name} | {result.slot.work_begin if result.slot else '-'}\n"
             f"code={result.code} attempts={result.attempts} dur={result.duration_ms}ms\n"
@@ -92,7 +98,8 @@ async def _notify(cfg, title, body, level):
 
 
 def main(argv=None) -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    logging.getLogger("jxgrab").setLevel(logging.DEBUG)
     ap = argparse.ArgumentParser(prog="jxgrab")
     ap.add_argument("--config", default="config.yaml")
     ap.add_argument("--target", default=None, help="profile name or id; skip rotation")
