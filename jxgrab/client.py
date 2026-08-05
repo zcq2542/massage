@@ -37,6 +37,19 @@ def parse_server_time(v) -> datetime:
     raise ValueError(f"unparseable server time: {v!r}")
 
 
+def _decode(data):
+    """Site sometimes returns a JSON value as a JSON-encoded STRING (double
+    encoded): the body is e.g. '"{"code":"1"}"' so r.json() yields the Python
+    str '{"code":"1"}', not a dict. Normalize to the parsed value. Safe on
+    already-decoded values (lists/dicts/ints) — returns them unchanged."""
+    if isinstance(data, str) and data.strip()[:1] in ("{", "["):
+        try:
+            return loads(data)
+        except ValueError:
+            pass
+    return data
+
+
 class SiteClient:
     def __init__(self, base_url: str, timeout: float = 3.0):
         self.base_url = base_url
@@ -69,21 +82,12 @@ class SiteClient:
     async def get_time_config(self, q: dict):
         r = await self._c.get("/InSurHome/getTimeConfig", params=q)
         r.raise_for_status()
-        return r.json()
+        return _decode(r.json())
 
     async def get_schedule_raw(self, q: dict):
         r = await self._c.get("/InSurHome/GetSchedule", params=q)
         r.raise_for_status()
-        data = r.json()
-        # Site returns the slot array as a JSON-encoded string ("[{...}]");
-        # decode once more so callers get the list. Guard so plain strings /
-        # empty bodies don't crash (get_schedule coerces non-lists to []).
-        if isinstance(data, str) and data.strip().startswith(("[", "{")):
-            try:
-                data = loads(data)
-            except ValueError:
-                pass
-        return data
+        return _decode(r.json())
 
     async def get_schedule(self, q: dict) -> list:
         data = await self.get_schedule_raw(q)
@@ -92,19 +96,19 @@ class SiteClient:
     async def save_record(self, q: dict) -> dict:
         r = await self._c.post("/InSurHome/SaveRecord", params=q)
         r.raise_for_status()
-        return r.json()
+        return _decode(r.json())
 
     async def get_user_info(self, q: dict):
         r = await self._c.get("/InSurHome/getUserInfo", params=q)
         r.raise_for_status()
-        return r.json()
+        return _decode(r.json())
 
     async def get_history(self, q: dict):
         r = await self._c.get("/InSurHome/gethistory", params=q)
         r.raise_for_status()
-        return r.json()
+        return _decode(r.json())
 
     async def cancel_record(self, q: dict) -> dict:
         r = await self._c.post("/InSurHome/cancelRecord", params=q)
         r.raise_for_status()
-        return r.json()
+        return _decode(r.json())

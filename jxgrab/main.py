@@ -105,6 +105,7 @@ async def _notify(cfg, title, body, level):
 def main(argv=None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     logging.getLogger("jxgrab").setLevel(logging.DEBUG)
+    logging.getLogger("httpx").setLevel(logging.WARNING)   # silence per-request INFO noise
     ap = argparse.ArgumentParser(prog="jxgrab")
     ap.add_argument("--config", default="config.yaml")
     ap.add_argument("--target", default=None, help="profile name or id; skip rotation")

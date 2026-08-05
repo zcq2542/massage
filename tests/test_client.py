@@ -73,6 +73,17 @@ async def test_save_record_uses_query_not_body():
     assert req.content == b""
 
 @respx.mock
+async def test_save_record_decodes_string_body():
+    # live site returns SaveRecord response as a JSON-encoded string;
+    # callers must get a dict back so resp.get("code") works
+    body = '{"code": "1", "mes": "1"}'
+    respx.post(f"{BASE}/InSurHome/SaveRecord").mock(return_value=httpx.Response(200, json=body))
+    async with SiteClient(BASE) as c:
+        resp = await c.save_record({"sch_id": "5"})
+    assert resp == {"code": "1", "mes": "1"}
+    assert resp.get("code") == "1"   # the crash scenario: .get on the result
+
+@respx.mock
 async def test_headers_include_browser_fingerprint():
     respx.post(f"{BASE}/InSurHome/GetServerTime").mock(
         return_value=httpx.Response(200, json="2026-07-27 20:00:00"))
